@@ -273,6 +273,24 @@ const worker_reducer = (state = worker_defaultState, action) => {
         error: action.error,
         loading: false
       };
+    case actionTypes.FETCH_WFILTER:
+      return {
+        ...state,
+        error: undefined,
+        loading: true
+      };
+    case actionTypes.FETCH_WFILTER_SUCCESS:
+      return {
+        ...state,
+        workers: action.response,
+        loading: false
+      };
+    case actionTypes.FETCH_WFILTER_ERROR:
+      return {
+        ...state,
+        error: action.error,
+        loading: false
+      };
     default:
       return state;
   }

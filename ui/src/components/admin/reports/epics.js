@@ -165,6 +165,19 @@ const fetchJobStats = (action$, store) =>
       .catch(error => Observable.of(actions.fetchItemError(flattenError(error))));
 });
 
+const getWorkersFilter = (action$, store) =>
+  action$.ofType(actionTypes.FETCH_WFILTER).switchMap(action => {
+    return Observable.defer(() => requestersApi.get('filterWorkers/'+action.jobId+'/item/'+action.itemId))
+      .mergeMap(response => Observable.of(actions.fetchWorkersFilterSuccess(response.data)))
+      .catch(error => Observable.of(actions.fetchWorkersFilterError(flattenError(error))));
+});
+const fetchWorkersFilter = (action$, store) =>
+  action$.ofType(actionTypes.FETCH_ITEM).switchMap(action => {
+    return Observable.defer(() => requestersApi.get('filterWorkers/'+action.jobId+'/item/'+action.itemId))
+      .mergeMap(response => Observable.of(actions.fetchItemSuccess(response.data)))
+      .catch(error => Observable.of(actions.fetchItemError(flattenError(error))));
+});
+
 export default combineEpics(getTaskTime, fetchTaskTime,
                             getWorkers, fetchWorkers, 
                             //getWorkerTimes, fetchWorkerTimes, 
@@ -177,5 +190,6 @@ export default combineEpics(getTaskTime, fetchTaskTime,
                             getWorkersPairs, fetchWorkersPairs,
                             getSingleWorker, fetchSingleWorker,
                             getContribution, fetchContribution,
-                            getJobStats, fetchJobStats
+                            getJobStats, fetchJobStats,
+                            getWorkersFilter, fetchWorkersFilter
                           );

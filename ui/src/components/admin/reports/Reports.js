@@ -112,6 +112,10 @@ class Reports extends React.Component {
 	}
 
 	chooseItem(e, {value}) {
+		this.state.chosenmetric=='SingleWorker' ?
+			this.props.fetchWorkersFilter(this.props.match.params.jobid, value)
+			: this.props.fetchWorkers(this.props.match.params.jobid)
+
 		this.setState({
 			...this.state,
 			chosenitem: value,
@@ -148,7 +152,7 @@ class Reports extends React.Component {
 
 	render() {
 		console.log('reports data: ', this.props.reports.tasks)
-		console.log('workers :', this.props.workers.workers)
+		//console.log('workers :', this.props.workers.workers)
 
 		//refresh options for charts with new loaded data every time
 		var WorkerOptions =  { 'all' : 'All Workers' }
@@ -361,6 +365,7 @@ Reports.propTypes = {
 	fetchSingleWorker: PropTypes.func,
 	fetchJobStats: PropTypes.func,
 	fetchContribution: PropTypes.func,
+	fetchWorkersFilter: PropTypes.func,
 
 	fetchItems: PropTypes.func,
 	fetchCriteria: PropTypes.func,
@@ -383,7 +388,8 @@ const mapDispatchToProps = dispatch => ({
 	fetchWorkersPairs: jobId => dispatch(actions.fetchWorkersPairs(jobId)),
 	fetchSingleWorker: (jobId,workerId) => dispatch(actions.fetchSingleWorker(jobId,workerId)),
 	fetchJobStats: jobId => dispatch(actions.fetchJobStats(jobId)),
-	fetchContribution: jobId => dispatch(actions.fetchContribution(jobId))
+	fetchContribution: jobId => dispatch(actions.fetchContribution(jobId)),
+	fetchWorkersFilter: (jobId,itemId) => dispatch(actions.fetchWorkersFilter(jobId,itemId)),
 })
 
 const mapStateToProps = state => ({

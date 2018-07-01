@@ -20,6 +20,9 @@ const actionTypes = {
   FETCH_WORKERS: 'C_FETCH_WORKERS',
   FETCH_WORKERS_SUCCESS: 'C_FETCH_WORKERS_SUCCESS',
   FETCH_WORKERS_ERROR: 'C_FETCH_WORKERS_ERROR',
+  FETCH_WFILTER: 'C_FETCH_WFILTER',
+  FETCH_WFILTER_SUCCESS: 'C_FETCH_WFILTER_SUCCESS',
+  FETCH_WFILTER_ERROR: 'C_FETCH_WFILTER_ERROR',
   /*FETCH_WAGREES: 'C_FETCH_WAGREES',
   FETCH_WAGREES_SUCCESS: 'C_FETCH_WAGREES_SUCCESS',
   FETCH_WAGREES_ERROR: 'C_FETCH_WAGREES_ERROR',*/
@@ -176,6 +179,26 @@ const actions = {
   fetchWorkersError(error) {
     return {
       type: actionTypes.FETCH_WORKERS_ERROR,
+      error
+    };
+  },
+
+  fetchWorkersFilter(jobId,itemId) {
+    return{
+      type: actionTypes.FETCH_WFILTER,
+      jobId,
+      itemId
+    };
+  },
+  fetchWorkersFilterSuccess(response) {
+    return{
+      type: actionTypes.FETCH_WFILTER_SUCCESS,
+      response
+    };
+  },
+  fetchWorkersFilterError(error) {
+    return{
+      type: actionTypes.FETCH_WFILTER_ERROR,
       error
     };
   },
