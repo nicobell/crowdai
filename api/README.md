@@ -4,8 +4,8 @@ Service + Business layer for CrowdRev. This project uses [koajs](http://koajs.co
 
 ## Requirements
 
-* Node.js 8+
-* PostgreSQL server 9.5
+- Node.js 8+
+- PostgreSQL server 9.5+
 
 ## Configure
 
@@ -42,7 +42,7 @@ Create a database based on the configuration parameters you define in your `.env
 Run the script _src/db/init.sql_ to initialize the database.
 Now you have the database up & running.
 
-### Development
+### Development mode
 
 To run in development mode, just issue the following:
 
@@ -58,7 +58,7 @@ $ npm run debug
 
 The API should be available at http://localhost:4000/
 
-### Production
+### Production mode
 
 To deploy the backend in production using heroku, you can do the following:
 
@@ -81,3 +81,32 @@ $ git subtree push --prefix api heroku master
 ```
 
 The API should be available at https://[NAME].herokuapp.com
+
+# Contribute
+
+## Testing
+
+### Run the Task Assignment APIs
+
+Before runnig the all the tests you should make sure that the following projects are running:
+
+- [Task assignment Box - Baseline](https://github.com/TrentoCrowdAI/Task-Assignment-Box) on port 10000
+- [Task assignment Box - Shortest Run](https://github.com/TrentoCrowdAI/MSR-Box) on port 5000
+
+Both projects should configure the test database environment variable using the following:
+
+```shell
+$ export PGDATABASE=crowdrev-test
+```
+
+These two API projects are invoked by the tests that are inside the `src/test` folder. Simply ignore this step if you are not running any test inside the `src/test` folder.
+
+## Running the tests
+
+[jest](https://jestjs.io/) is used for running the tests.
+
+To run the all the tests simply issue the following:
+
+```shell
+$ npm test
+```
