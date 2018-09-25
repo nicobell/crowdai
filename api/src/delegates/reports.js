@@ -13,11 +13,11 @@ const getAllTasksTimesByJob = (exports.getAllTasksTimesByJob = async id => {
         ) AS avgtime_ms 
   FROM
     ( SELECT item_id,
-        (data->'criteria')::json#>>'{0,id}' AS criteria_id,
+        (data->>'criteria')::json#>>'{0,id}' AS criteria_id,
         (data->>'end')::TIMESTAMP WITHOUT TIME ZONE AS time_end,
         (data->>'start')::TIMESTAMP WITHOUT TIME ZONE AS time_start 
       FROM ${db.TABLES.Task}
-      WHERE job_id=$1 AND (data->'answered')='true'
+      WHERE job_id=$1 AND (data->>'answered')='true'
     ) AS times_table 
   GROUP BY
     times_table.item_id,
@@ -39,27 +39,27 @@ const getWorkersByJob = (exports.getWorkersByJob = async id => {
     let res = await db.query(
       `
     SELECT DISTINCT t.worker_id, w.turk_id,
-      COUNT((t.item_id, (t.data->'criteria')::json#>>'{0,id}')) AS voted_tasks,
-      SUM(CASE WHEN ((t.data->'criteria')::json#>>'{0,workerAnswer}')=crowd.answer THEN 1 ELSE 0 END) AS rights,
-      SUM(CASE WHEN ((t.data->'criteria')::json#>>'{0,workerAnswer}')=g.gold THEN 1 ELSE 0 END) AS rights_gold
+      COUNT((t.item_id, (t.data->>'criteria')::json#>>'{0,id}')) AS voted_tasks,
+      SUM(CASE WHEN ((t.data->>'criteria')::json#>>'{0,workerAnswer}')=crowd.answer THEN 1 ELSE 0 END) AS rights,
+      SUM(CASE WHEN ((t.data->>'criteria')::json#>>'{0,workerAnswer}')=g.gold THEN 1 ELSE 0 END) AS rights_gold
     FROM ${db.TABLES.Task} t, ${db.TABLES.Worker} w, ${db.TABLES.Gold} g, (
-      SELECT a.item_id, (a.data->'criteria')::json#>>'{0,id}' AS criteria_id,
-        (SELECT (b.data->'criteria')::json#>>'{0,workerAnswer}'
+      SELECT a.item_id, (a.data->>'criteria')::json#>>'{0,id}' AS criteria_id,
+        (SELECT (b.data->>'criteria')::json#>>'{0,workerAnswer}'
         FROM ${db.TABLES.Task} b
-        WHERE b.item_id=a.item_id AND (b.data->'answered')='true'
+        WHERE b.item_id=a.item_id AND (b.data->>'answered')='true'
         --AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND b.job_id=$1
-        GROUP BY b.item_id,(b.data->'criteria')::json#>>'{0,id}',(b.data->'criteria')::json#>>'{0,workerAnswer}'
+        GROUP BY b.item_id,(b.data->>'criteria')::json#>>'{0,id}',(b.data->>'criteria')::json#>>'{0,workerAnswer}'
         ORDER BY COUNT(*) desc
         limit 1) AS answer
       FROM ${db.TABLES.Task} a
-      WHERE a.job_id=$1 AND (a.data->'answered')='true'
+      WHERE a.job_id=$1 AND (a.data->>'answered')='true'
       --AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
-      GROUP BY a.item_id, (a.data->'criteria')::json#>>'{0,id}'
-      ORDER BY a.item_id, (a.data->'criteria')::json#>>'{0,id}'
+      GROUP BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
+      ORDER BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
       ) AS crowd
-    WHERE t.job_id=$1 AND (t.data->'answered')='true' AND t.worker_id=w.id
-    AND t.item_id=crowd.item_id AND (t.data->'criteria')::json#>>'{0,id}'=crowd.criteria_id
-    AND t.item_id=g.item_id AND CAST((t.data->'criteria')::json#>>'{0,id}' AS BIGINT)=g.criteria_id
+    WHERE t.job_id=$1 AND (t.data->>'answered')='true' AND t.worker_id=w.id
+    AND t.item_id=crowd.item_id AND (t.data->>'criteria')::json#>>'{0,id}'=crowd.criteria_id
+    AND t.item_id=g.item_id AND CAST((t.data->>'criteria')::json#>>'{0,id}' AS BIGINT)=g.criteria_id
     GROUP BY t.worker_id, w.turk_id
     ORDER BY t.worker_id`,
       [id]
@@ -86,14 +86,14 @@ const getWorkersByJob = (exports.getWorkersByJob = async id => {
 const getTasksAgreements = (exports.getTasksAgreements = async id => {
   try {
     let res = await db.query(
-      `SELECT item_id,(data->'criteria')::json#>>'{0,id}' AS criteria_id,
-      COUNT( CASE (data->'criteria')::json#>>'{0,workerAnswer}' WHEN 'yes' THEN 1 ELSE null END) AS yes,
-      COUNT( CASE (data->'criteria')::json#>>'{0,workerAnswer}' WHEN 'no' THEN 1 ELSE null END) AS no,
-      COUNT( CASE (data->'criteria')::json#>>'{0,workerAnswer}' WHEN 'not clear' THEN 1 ELSE null END) AS "not clear"
+      `SELECT item_id,(data->>'criteria')::json#>>'{0,id}' AS criteria_id,
+      COUNT( CASE (data->>'criteria')::json#>>'{0,workerAnswer}' WHEN 'yes' THEN 1 ELSE null END) AS yes,
+      COUNT( CASE (data->>'criteria')::json#>>'{0,workerAnswer}' WHEN 'no' THEN 1 ELSE null END) AS no,
+      COUNT( CASE (data->>'criteria')::json#>>'{0,workerAnswer}' WHEN 'not clear' THEN 1 ELSE null END) AS "not clear"
     FROM ${db.TABLES.Task}
-    WHERE job_id=$1 AND (data->'answered')='true'
-    GROUP BY item_id,(data->'criteria')::json#>>'{0,id}'
-    ORDER BY item_id,(data->'criteria')::json#>>'{0,id}'`,
+    WHERE job_id=$1 AND (data->>'answered')='true'
+    GROUP BY item_id,(data->>'criteria')::json#>>'{0,id}'
+    ORDER BY item_id,(data->>'criteria')::json#>>'{0,id}'`,
       [id]
     );
     return (tasks = { tasks: res.rows });
@@ -107,9 +107,9 @@ const getWorkersAgreements = (exports.getWorkersAgreements = async jobId => {
   try {
     let res = await db.query(
       `
-      SELECT item_id,(data->'criteria')::json#>>'{0,id}' AS criteria_id,worker_id,(data->'criteria')::json#>>'{0,workerAnswer}' AS answer
+      SELECT item_id,(data->>'criteria')::json#>>'{0,id}' AS criteria_id,worker_id,(data->>'criteria')::json#>>'{0,workerAnswer}' AS answer
       FROM ${db.TABLES.Task}
-      WHERE job_id=$1 AND (data->'answered')='true'
+      WHERE job_id=$1 AND (data->>'answered')='true'
     `,
       [jobId]
     );
@@ -124,20 +124,20 @@ const getCrowdGolds = (exports.getCrowdGolds = async jobId => {
   try {
     let res = await db.query(
       `
-      SELECT DISTINCT a.item_id, cast((a.data->'criteria')::json#>>'{0,id}' AS bigint) AS criteria_id,
+      SELECT DISTINCT a.item_id, cast((a.data->>'criteria')::json#>>'{0,id}' AS bigint) AS criteria_id,
         (
-          SELECT (b.data->'criteria')::json#>>'{0,workerAnswer}' AS answer
+          SELECT (b.data->>'criteria')::json#>>'{0,workerAnswer}' AS answer
           FROM ${db.TABLES.Task} b
           WHERE b.item_id=a.item_id 
-          AND (b.data->'criteria')::json#>>'{0,id}'=(a.data->'criteria')::json#>>'{0,id}'
-          AND b.job_id=$1 AND (b.data->'answered')='true'
+          AND (b.data->>'criteria')::json#>>'{0,id}'=(a.data->>'criteria')::json#>>'{0,id}'
+          AND b.job_id=$1 AND (b.data->>'answered')='true'
           GROUP BY b.item_id, b.data
           ORDER BY COUNT(*) desc
           limit 1
         ) AS answer
       FROM ${db.TABLES.Task} a
-      WHERE a.job_id=$1 AND (a.data->'answered')='true'
-      GROUP BY a.item_id, a.data,(a.data->'criteria')::json#>>'{0,id}'
+      WHERE a.job_id=$1 AND (a.data->>'answered')='true'
+      GROUP BY a.item_id, a.data,(a.data->>'criteria')::json#>>'{0,id}'
       ORDER BY a.item_id, criteria_id
     `,
       [jobId]
@@ -155,36 +155,36 @@ const getWorkersPairs = (exports.getWorkersPairs = async jobId => {
     const query = await db.query(
       `
     SELECT DISTINCT t.worker_id, r.worker_id, u.turk_id AS wa, v.turk_id AS wb,
-      SUM(CASE WHEN (t.data->'criteria')::json#>>'{0,workerAnswer}'<>crowd.answer OR (r.data->'criteria')::json#>>'{0,workerAnswer}'<>crowd.answer THEN 1 ELSE 0 END) AS one_mistake,
+      SUM(CASE WHEN (t.data->>'criteria')::json#>>'{0,workerAnswer}'<>crowd.answer OR (r.data->>'criteria')::json#>>'{0,workerAnswer}'<>crowd.answer THEN 1 ELSE 0 END) AS one_mistake,
       COUNT((crowd.item_id,crowd.criteria_id)) AS common_tasks,
-      GREATEST(COUNT(DISTINCT (r.data->'criteria')::json#>>'{0,workerAnswer}'), COUNT(DISTINCT (t.data->'criteria')::json#>>'{0,workerAnswer}')) AS distinct_answers,
-      SUM(CASE WHEN (t.data->'criteria')::json#>>'{0,workerAnswer}'='yes' AND (r.data->'criteria')::json#>>'{0,workerAnswer}'='yes' THEN 1 ELSE 0 END) AS yes_yes,
-      SUM(CASE WHEN (t.data->'criteria')::json#>>'{0,workerAnswer}'='yes' AND (r.data->'criteria')::json#>>'{0,workerAnswer}'='no' THEN 1 ELSE 0 END) AS yes_no,
-      SUM(CASE WHEN (t.data->'criteria')::json#>>'{0,workerAnswer}'='no' AND (r.data->'criteria')::json#>>'{0,workerAnswer}'='yes' THEN 1 ELSE 0 END) AS no_yes,
-      SUM(CASE WHEN (t.data->'criteria')::json#>>'{0,workerAnswer}'='no' AND (r.data->'criteria')::json#>>'{0,workerAnswer}'='no' THEN 1 ELSE 0 END) AS no_no,
-      SUM(CASE WHEN (t.data->'criteria')::json#>>'{0,workerAnswer}'<>crowd.answer AND (r.data->'criteria')::json#>>'{0,workerAnswer}'<>crowd.answer THEN 1 ELSE 0 END) AS both_mistake,
-      SUM(CASE WHEN (r.data->'criteria')::json#>>'{0,workerAnswer}'<>crowd.answer THEN 1 ELSE 0 END) AS b_mistake,
-      SUM(CASE WHEN (t.data->'criteria')::json#>>'{0,workerAnswer}'<>crowd.answer THEN 1 ELSE 0 END) AS a_mistake
+      GREATEST(COUNT(DISTINCT (r.data->>'criteria')::json#>>'{0,workerAnswer}'), COUNT(DISTINCT (t.data->>'criteria')::json#>>'{0,workerAnswer}')) AS distinct_answers,
+      SUM(CASE WHEN (t.data->>'criteria')::json#>>'{0,workerAnswer}'='yes' AND (r.data->>'criteria')::json#>>'{0,workerAnswer}'='yes' THEN 1 ELSE 0 END) AS yes_yes,
+      SUM(CASE WHEN (t.data->>'criteria')::json#>>'{0,workerAnswer}'='yes' AND (r.data->>'criteria')::json#>>'{0,workerAnswer}'='no' THEN 1 ELSE 0 END) AS yes_no,
+      SUM(CASE WHEN (t.data->>'criteria')::json#>>'{0,workerAnswer}'='no' AND (r.data->>'criteria')::json#>>'{0,workerAnswer}'='yes' THEN 1 ELSE 0 END) AS no_yes,
+      SUM(CASE WHEN (t.data->>'criteria')::json#>>'{0,workerAnswer}'='no' AND (r.data->>'criteria')::json#>>'{0,workerAnswer}'='no' THEN 1 ELSE 0 END) AS no_no,
+      SUM(CASE WHEN (t.data->>'criteria')::json#>>'{0,workerAnswer}'<>crowd.answer AND (r.data->>'criteria')::json#>>'{0,workerAnswer}'<>crowd.answer THEN 1 ELSE 0 END) AS both_mistake,
+      SUM(CASE WHEN (r.data->>'criteria')::json#>>'{0,workerAnswer}'<>crowd.answer THEN 1 ELSE 0 END) AS b_mistake,
+      SUM(CASE WHEN (t.data->>'criteria')::json#>>'{0,workerAnswer}'<>crowd.answer THEN 1 ELSE 0 END) AS a_mistake
     FROM ${db.TABLES.Task} t, ${db.TABLES.Task} r, ${db.TABLES.Worker} u, ${db.TABLES.Worker} v, (
-      SELECT a.item_id, (a.data->'criteria')::json#>>'{0,id}' AS criteria_id,
-        (SELECT (b.data->'criteria')::json#>>'{0,workerAnswer}'
+      SELECT a.item_id, (a.data->>'criteria')::json#>>'{0,id}' AS criteria_id,
+        (SELECT (b.data->>'criteria')::json#>>'{0,workerAnswer}'
         FROM ${db.TABLES.Task} b
-        WHERE b.item_id=a.item_id AND b.job_id=$1 AND (b.data->'answered')='true'
+        WHERE b.item_id=a.item_id AND b.job_id=$1 AND (b.data->>'answered')='true'
         --AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
-        GROUP BY b.item_id,(b.data->'criteria')::json#>>'{0,id}',(b.data->'criteria')::json#>>'{0,workerAnswer}'
+        GROUP BY b.item_id,(b.data->>'criteria')::json#>>'{0,id}',(b.data->>'criteria')::json#>>'{0,workerAnswer}'
         ORDER BY COUNT(*) desc
         limit 1) AS answer
       FROM ${db.TABLES.Task} a
-      WHERE a.job_id=$1 AND (a.data->'answered')='true'
+      WHERE a.job_id=$1 AND (a.data->>'answered')='true'
       --WHERE a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
-      GROUP BY a.item_id, (a.data->'criteria')::json#>>'{0,id}'
-      ORDER BY a.item_id, (a.data->'criteria')::json#>>'{0,id}'
+      GROUP BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
+      ORDER BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
       ) AS crowd
     WHERE t.worker_id<>r.worker_id AND t.job_id=$1 AND r.job_id=$1 AND t.worker_id<r.worker_id
-    AND t.item_id=r.item_id AND (t.data->'criteria')::json#>>'{0,id}'=(r.data->'criteria')::json#>>'{0,id}'
-    AND (t.data->'answered')='true' AND (r.data->'answered')='true'
+    AND t.item_id=r.item_id AND (t.data->>'criteria')::json#>>'{0,id}'=(r.data->>'criteria')::json#>>'{0,id}'
+    AND (t.data->>'answered')='true' AND (r.data->>'answered')='true'
     AND u.id=t.worker_id AND v.id=r.worker_id
-    AND crowd.item_id=t.item_id AND (t.data->'criteria')::json#>>'{0,id}'=crowd.criteria_id
+    AND crowd.item_id=t.item_id AND (t.data->>'criteria')::json#>>'{0,id}'=crowd.criteria_id
     --AND t.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND r.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
     GROUP BY t.worker_id, r.worker_id, u.turk_id, v.turk_id
     ORDER BY t.worker_id, r.worker_id
@@ -231,31 +231,31 @@ const getSingleWorker = (exports.getSingleWorker = async (jobId, workerId) => {
     var workersCouples = [];
     var query = await db.query(
       `SELECT u.turk_id, t.worker_id, 
-        SUM(CASE WHEN (t.data->'criteria')::json#>>'{0,workerAnswer}'<>g.gold AND crowd.answer<>g.gold THEN 1 ELSE 0 END) AS votes_as_crowd, 
+        SUM(CASE WHEN (t.data->>'criteria')::json#>>'{0,workerAnswer}'<>g.gold AND crowd.answer<>g.gold THEN 1 ELSE 0 END) AS votes_as_crowd, 
         SUM(CASE WHEN crowd.answer<>g.gold THEN 1 ELSE 0 END) AS votes_on_wronglyclassified,
-        SUM(CASE WHEN ((t.data->'criteria')::json#>>'{0,workerAnswer}')=crowd.answer THEN 1 ELSE 0 END) AS rights,
-        SUM(CASE WHEN ((t.data->'criteria')::json#>>'{0,workerAnswer}')=g.gold THEN 1 ELSE 0 END) AS right_by_gold,
-        COUNT((t.item_id, (t.data->'criteria')::json#>>'{0,id}')) AS voted_tasks,
+        SUM(CASE WHEN ((t.data->>'criteria')::json#>>'{0,workerAnswer}')=crowd.answer THEN 1 ELSE 0 END) AS rights,
+        SUM(CASE WHEN ((t.data->>'criteria')::json#>>'{0,workerAnswer}')=g.gold THEN 1 ELSE 0 END) AS right_by_gold,
+        COUNT((t.item_id, (t.data->>'criteria')::json#>>'{0,id}')) AS voted_tasks,
         EXTRACT( EPOCH FROM (u.created_at)::TIMESTAMP WITHOUT TIME ZONE) AS registered
       FROM ${db.TABLES.Task} t, ${db.TABLES.Worker} u, ${db.TABLES.Gold} g, (
-        SELECT a.item_id, (a.data->'criteria')::json#>>'{0,id}' AS criteria_id,
-          (SELECT (b.data->'criteria')::json#>>'{0,workerAnswer}'
+        SELECT a.item_id, (a.data->>'criteria')::json#>>'{0,id}' AS criteria_id,
+          (SELECT (b.data->>'criteria')::json#>>'{0,workerAnswer}'
           FROM ${db.TABLES.Task} b
-          WHERE b.item_id=a.item_id AND (b.data->'answered')='true'
+          WHERE b.item_id=a.item_id AND (b.data->>'answered')='true'
           --AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND b.job_id=$1
-          GROUP BY b.item_id,(b.data->'criteria')::json#>>'{0,id}',(b.data->'criteria')::json#>>'{0,workerAnswer}'
+          GROUP BY b.item_id,(b.data->>'criteria')::json#>>'{0,id}',(b.data->>'criteria')::json#>>'{0,workerAnswer}'
           ORDER BY COUNT(*) desc
           limit 1) AS answer
         FROM ${db.TABLES.Task} a
-        WHERE a.job_id=$1 AND (a.data->'answered')='true'
+        WHERE a.job_id=$1 AND (a.data->>'answered')='true'
         --AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
-        GROUP BY a.item_id, (a.data->'criteria')::json#>>'{0,id}'
-        ORDER BY a.item_id, (a.data->'criteria')::json#>>'{0,id}'
+        GROUP BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
+        ORDER BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
         ) AS crowd
       WHERE t.item_id=crowd.item_id AND g.item_id=t.item_id AND u.id=t.worker_id
-      AND t.job_id=$1 AND t.worker_id=$2 AND (t.data->'answered')='true'
-      AND crowd.criteria_id=(t.data->'criteria')::json#>>'{0,id}' 
-      AND g.criteria_id=cast((t.data->'criteria')::json#>>'{0,id}' AS bigint)
+      AND t.job_id=$1 AND t.worker_id=$2 AND (t.data->>'answered')='true'
+      AND crowd.criteria_id=(t.data->>'criteria')::json#>>'{0,id}' 
+      AND g.criteria_id=cast((t.data->>'criteria')::json#>>'{0,id}' AS bigint)
       --AND t.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
       GROUP BY t.worker_id, u.turk_id, u.created_at
       ORDER BY t.worker_id`,
@@ -265,32 +265,32 @@ const getSingleWorker = (exports.getSingleWorker = async (jobId, workerId) => {
     var answers = await db.query(`
       SELECT u.turk_id, t.item_id, 
           EXTRACT( EPOCH FROM (t.created_at)::TIMESTAMP WITHOUT TIME ZONE) AS delivery, 
-          (t.data->'criteria')::json#>>'{0,id}' AS criteria_id, 
-          (t.data->'criteria')::json#>>'{0,workerAnswer}' AS answer,
-          (CASE WHEN g.gold=(t.data->'criteria')::json#>>'{0,workerAnswer}' THEN true ELSE false END) AS correct,
-          (CASE WHEN crowd.answer=(t.data->'criteria')::json#>>'{0,workerAnswer}' THEN true ELSE false END) AS crowd_correct,
+          (t.data->>'criteria')::json#>>'{0,id}' AS criteria_id, 
+          (t.data->>'criteria')::json#>>'{0,workerAnswer}' AS answer,
+          (CASE WHEN g.gold=(t.data->>'criteria')::json#>>'{0,workerAnswer}' THEN true ELSE false END) AS correct,
+          (CASE WHEN crowd.answer=(t.data->>'criteria')::json#>>'{0,workerAnswer}' THEN true ELSE false END) AS crowd_correct,
             (EXTRACT( EPOCH FROM (t.data->>'end')::TIMESTAMP WITHOUT TIME ZONE)*1000)-
             (EXTRACT( EPOCH FROM (t.data->>'start')::TIMESTAMP WITHOUT TIME ZONE)*1000) 
           AS completion_time
       FROM ${db.TABLES.Task} t, ${db.TABLES.Worker} u, ${db.TABLES.Gold} g, (
-        SELECT a.item_id, (a.data->'criteria')::json#>>'{0,id}' AS criteria_id,
-          (SELECT (b.data->'criteria')::json#>>'{0,workerAnswer}'
+        SELECT a.item_id, (a.data->>'criteria')::json#>>'{0,id}' AS criteria_id,
+          (SELECT (b.data->>'criteria')::json#>>'{0,workerAnswer}'
           FROM ${db.TABLES.Task} b
-          WHERE b.item_id=a.item_id AND (b.data->'answered')='true'
+          WHERE b.item_id=a.item_id AND (b.data->>'answered')='true'
           --AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND b.job_id=$1
-          GROUP BY b.item_id,(b.data->'criteria')::json#>>'{0,id}',(b.data->'criteria')::json#>>'{0,workerAnswer}'
+          GROUP BY b.item_id,(b.data->>'criteria')::json#>>'{0,id}',(b.data->>'criteria')::json#>>'{0,workerAnswer}'
           ORDER BY COUNT(*) desc
           limit 1) AS answer
         FROM ${db.TABLES.Task} a
-        WHERE a.job_id=$1 AND (a.data->'answered')='true'
+        WHERE a.job_id=$1 AND (a.data->>'answered')='true'
         --AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
-        GROUP BY a.item_id, (a.data->'criteria')::json#>>'{0,id}'
-        ORDER BY a.item_id, (a.data->'criteria')::json#>>'{0,id}'
+        GROUP BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
+        ORDER BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
         ) AS crowd
       WHERE t.worker_id=u.id
-      AND g.item_id=t.item_id AND g.criteria_id=cast((t.data->'criteria')::json#>>'{0,id}' AS bigint)
-      AND crowd.item_id=t.item_id AND crowd.criteria_id=(t.data->'criteria')::json#>>'{0,id}'
-      AND t.worker_id=$2 AND t.job_id=$1 AND (t.data->'answered')='true'`,[jobId,workerId])
+      AND g.item_id=t.item_id AND g.criteria_id=cast((t.data->>'criteria')::json#>>'{0,id}' AS bigint)
+      AND crowd.item_id=t.item_id AND crowd.criteria_id=(t.data->>'criteria')::json#>>'{0,id}'
+      AND t.worker_id=$2 AND t.job_id=$1 AND (t.data->>'answered')='true'`,[jobId,workerId])
 
     let workerCouple = {
       'worker_A': query.rows[0].turk_id,
@@ -322,29 +322,29 @@ const getContribution = (exports.getContribution = async jobId => {
     var workersCouples = [];
     var query = await db.query(
       `SELECT u.turk_id, t.worker_id, 
-        SUM(CASE WHEN (t.data->'criteria')::json#>>'{0,workerAnswer}'<>g.gold AND crowd.answer<>g.gold THEN 1 ELSE 0 END) AS votes_as_crowd, 
+        SUM(CASE WHEN (t.data->>'criteria')::json#>>'{0,workerAnswer}'<>g.gold AND crowd.answer<>g.gold THEN 1 ELSE 0 END) AS votes_as_crowd, 
         SUM(CASE WHEN crowd.answer<>g.gold THEN 1 ELSE 0 END) AS votes_on_wronglyclassified,
-        SUM(CASE WHEN ((t.data->'criteria')::json#>>'{0,workerAnswer}')=crowd.answer THEN 1 ELSE 0 END) AS rights,
-        COUNT((t.item_id, (t.data->'criteria')::json#>>'{0,id}')) AS voted_tasks
+        SUM(CASE WHEN ((t.data->>'criteria')::json#>>'{0,workerAnswer}')=crowd.answer THEN 1 ELSE 0 END) AS rights,
+        COUNT((t.item_id, (t.data->>'criteria')::json#>>'{0,id}')) AS voted_tasks
       FROM ${db.TABLES.Task} t, ${db.TABLES.Worker} u, ${db.TABLES.Gold} g, (
-        SELECT a.item_id, (a.data->'criteria')::json#>>'{0,id}' AS criteria_id,
-          (SELECT (b.data->'criteria')::json#>>'{0,workerAnswer}'
+        SELECT a.item_id, (a.data->>'criteria')::json#>>'{0,id}' AS criteria_id,
+          (SELECT (b.data->>'criteria')::json#>>'{0,workerAnswer}'
           FROM ${db.TABLES.Task} b
-          WHERE b.item_id=a.item_id AND (b.data->'answered')='true'
+          WHERE b.item_id=a.item_id AND (b.data->>'answered')='true'
           --AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND b.job_id=$1
-          GROUP BY b.item_id,(b.data->'criteria')::json#>>'{0,id}',(b.data->'criteria')::json#>>'{0,workerAnswer}'
+          GROUP BY b.item_id,(b.data->>'criteria')::json#>>'{0,id}',(b.data->>'criteria')::json#>>'{0,workerAnswer}'
           ORDER BY COUNT(*) desc
           limit 1) AS answer
         FROM ${db.TABLES.Task} a
-        WHERE a.job_id=$1 AND (a.data->'answered')='true'
+        WHERE a.job_id=$1 AND (a.data->>'answered')='true'
         --AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
-        GROUP BY a.item_id, (a.data->'criteria')::json#>>'{0,id}'
-        ORDER BY a.item_id, (a.data->'criteria')::json#>>'{0,id}'
+        GROUP BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
+        ORDER BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
         ) AS crowd
       WHERE t.item_id=crowd.item_id AND g.item_id=t.item_id AND t.job_id=$1
-      AND u.id=t.worker_id AND (t.data->'answered')='true'
-      AND crowd.criteria_id=(t.data->'criteria')::json#>>'{0,id}' 
-      AND g.criteria_id=cast((t.data->'criteria')::json#>>'{0,id}' AS bigint)
+      AND u.id=t.worker_id AND (t.data->>'answered')='true'
+      AND crowd.criteria_id=(t.data->>'criteria')::json#>>'{0,id}' 
+      AND g.criteria_id=cast((t.data->>'criteria')::json#>>'{0,id}' AS bigint)
       --AND t.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
       GROUP BY t.worker_id, u.turk_id
       ORDER BY t.worker_id`,
@@ -377,31 +377,31 @@ const getJobStats = (exports.getJobStats = async jobId => {
     var query = await db.query(
       `
       SELECT t.item_id,
-        SUM(CASE WHEN (t.data->'criteria')::json#>>'{0,workerAnswer}'='yes' AND g.gold='yes' THEN 1 ELSE 0 END) AS tp,
-        SUM(CASE WHEN (t.data->'criteria')::json#>>'{0,workerAnswer}'='yes' AND g.gold='no' THEN 1 ELSE 0 END) AS fp,
-        SUM(CASE WHEN (t.data->'criteria')::json#>>'{0,workerAnswer}'='no' AND g.gold='yes' THEN 1 ELSE 0 END) AS fn,
-        SUM(CASE WHEN (t.data->'criteria')::json#>>'{0,workerAnswer}'='no' AND g.gold='no' THEN 1 ELSE 0 END) AS tn
+        SUM(CASE WHEN (t.data->>'criteria')::json#>>'{0,workerAnswer}'='yes' AND g.gold='yes' THEN 1 ELSE 0 END) AS tp,
+        SUM(CASE WHEN (t.data->>'criteria')::json#>>'{0,workerAnswer}'='yes' AND g.gold='no' THEN 1 ELSE 0 END) AS fp,
+        SUM(CASE WHEN (t.data->>'criteria')::json#>>'{0,workerAnswer}'='no' AND g.gold='yes' THEN 1 ELSE 0 END) AS fn,
+        SUM(CASE WHEN (t.data->>'criteria')::json#>>'{0,workerAnswer}'='no' AND g.gold='no' THEN 1 ELSE 0 END) AS tn
       FROM ${db.TABLES.Task} t, ${db.TABLES.Gold} g,
         (
-        SELECT DISTINCT a.item_id, (a.data->'criteria')::json#>>'{0,id}' AS criteria_id,
-          (SELECT (b.data->'criteria')::json#>>'{0,workerAnswer}' AS answer
+        SELECT DISTINCT a.item_id, (a.data->>'criteria')::json#>>'{0,id}' AS criteria_id,
+          (SELECT (b.data->>'criteria')::json#>>'{0,workerAnswer}' AS answer
           FROM ${db.TABLES.Task} b
           WHERE b.item_id=a.item_id 
-          AND (b.data->'criteria')::json#>>'{0,id}'=(a.data->'criteria')::json#>>'{0,id}'
-          AND b.job_id=$1 AND (b.data->'answered')='true'
+          AND (b.data->>'criteria')::json#>>'{0,id}'=(a.data->>'criteria')::json#>>'{0,id}'
+          AND b.job_id=$1 AND (b.data->>'answered')='true'
           --AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
           GROUP BY b.item_id, b.data
           ORDER BY COUNT(*) desc
           limit 1) AS answer
         FROM ${db.TABLES.Task} a
-        WHERE a.job_id=$1 AND (a.data->'answered')='true'
+        WHERE a.job_id=$1 AND (a.data->>'answered')='true'
         --WHERE a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
-        GROUP BY a.item_id, a.data,(a.data->'criteria')::json#>>'{0,id}'
-        ORDER BY a.item_id, (a.data->'criteria')::json#>>'{0,id}'
+        GROUP BY a.item_id, a.data,(a.data->>'criteria')::json#>>'{0,id}'
+        ORDER BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
         ) AS crowd
-      WHERE t.item_id=g.item_id AND (t.data->'criteria')::json#>>'{0,id}'=cast(g.criteria_id AS text)
-      AND t.item_id=crowd.item_id AND (t.data->'criteria')::json#>>'{0,id}'=crowd.criteria_id
-      AND t.job_id=$1 AND (t.data->'answered')='true'
+      WHERE t.item_id=g.item_id AND (t.data->>'criteria')::json#>>'{0,id}'=cast(g.criteria_id AS text)
+      AND t.item_id=crowd.item_id AND (t.data->>'criteria')::json#>>'{0,id}'=crowd.criteria_id
+      AND t.job_id=$1 AND (t.data->>'answered')='true'
       GROUP BY t.item_id
       ORDER BY t.item_id
     `,
