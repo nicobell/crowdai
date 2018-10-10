@@ -18,6 +18,7 @@ const getAllTasksTimesByJob = (exports.getAllTasksTimesByJob = async id => {
         (data->>'start')::TIMESTAMP WITHOUT TIME ZONE AS time_start 
       FROM ${db.TABLES.Task}
       WHERE job_id=$1 AND (data->>'answered')='true'
+      AND worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
     ) AS times_table 
   GROUP BY
     times_table.item_id,
@@ -47,17 +48,18 @@ const getWorkersByJob = (exports.getWorkersByJob = async id => {
         (SELECT (b.data->>'criteria')::json#>>'{0,workerAnswer}'
         FROM ${db.TABLES.Task} b
         WHERE b.item_id=a.item_id AND (b.data->>'answered')='true'
-        --AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND b.job_id=$1
+        AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND b.job_id=$1
         GROUP BY b.item_id,(b.data->>'criteria')::json#>>'{0,id}',(b.data->>'criteria')::json#>>'{0,workerAnswer}'
         ORDER BY COUNT(*) desc
         limit 1) AS answer
       FROM ${db.TABLES.Task} a
       WHERE a.job_id=$1 AND (a.data->>'answered')='true'
-      --AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
+      AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
       GROUP BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
       ORDER BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
       ) AS crowd
     WHERE t.job_id=$1 AND (t.data->>'answered')='true' AND t.worker_id=w.id
+    AND t.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
     AND t.item_id=crowd.item_id AND (t.data->>'criteria')::json#>>'{0,id}'=crowd.criteria_id
     AND t.item_id=g.item_id AND CAST((t.data->>'criteria')::json#>>'{0,id}' AS BIGINT)=g.criteria_id
     GROUP BY t.worker_id, w.turk_id
@@ -92,6 +94,7 @@ const getTasksAgreements = (exports.getTasksAgreements = async id => {
       COUNT( CASE (data->>'criteria')::json#>>'{0,workerAnswer}' WHEN 'not clear' THEN 1 ELSE null END) AS "not clear"
     FROM ${db.TABLES.Task}
     WHERE job_id=$1 AND (data->>'answered')='true'
+    AND worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
     GROUP BY item_id,(data->>'criteria')::json#>>'{0,id}'
     ORDER BY item_id,(data->>'criteria')::json#>>'{0,id}'`,
       [id]
@@ -110,6 +113,7 @@ const getWorkersAgreements = (exports.getWorkersAgreements = async jobId => {
       SELECT item_id,(data->>'criteria')::json#>>'{0,id}' AS criteria_id,worker_id,(data->>'criteria')::json#>>'{0,workerAnswer}' AS answer
       FROM ${db.TABLES.Task}
       WHERE job_id=$1 AND (data->>'answered')='true'
+      AND worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
     `,
       [jobId]
     );
@@ -131,12 +135,14 @@ const getCrowdGolds = (exports.getCrowdGolds = async jobId => {
           WHERE b.item_id=a.item_id 
           AND (b.data->>'criteria')::json#>>'{0,id}'=(a.data->>'criteria')::json#>>'{0,id}'
           AND b.job_id=$1 AND (b.data->>'answered')='true'
+          AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
           GROUP BY b.item_id, b.data
           ORDER BY COUNT(*) desc
           limit 1
         ) AS answer
       FROM ${db.TABLES.Task} a
       WHERE a.job_id=$1 AND (a.data->>'answered')='true'
+      AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
       GROUP BY a.item_id, a.data,(a.data->>'criteria')::json#>>'{0,id}'
       ORDER BY a.item_id, criteria_id
     `,
@@ -170,13 +176,13 @@ const getWorkersPairs = (exports.getWorkersPairs = async jobId => {
         (SELECT (b.data->>'criteria')::json#>>'{0,workerAnswer}'
         FROM ${db.TABLES.Task} b
         WHERE b.item_id=a.item_id AND b.job_id=$1 AND (b.data->>'answered')='true'
-        --AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
+        AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
         GROUP BY b.item_id,(b.data->>'criteria')::json#>>'{0,id}',(b.data->>'criteria')::json#>>'{0,workerAnswer}'
         ORDER BY COUNT(*) desc
         limit 1) AS answer
       FROM ${db.TABLES.Task} a
       WHERE a.job_id=$1 AND (a.data->>'answered')='true'
-      --WHERE a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
+      AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
       GROUP BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
       ORDER BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
       ) AS crowd
@@ -185,7 +191,7 @@ const getWorkersPairs = (exports.getWorkersPairs = async jobId => {
     AND (t.data->>'answered')='true' AND (r.data->>'answered')='true'
     AND u.id=t.worker_id AND v.id=r.worker_id
     AND crowd.item_id=t.item_id AND (t.data->>'criteria')::json#>>'{0,id}'=crowd.criteria_id
-    --AND t.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND r.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
+    AND t.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND r.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
     GROUP BY t.worker_id, r.worker_id, u.turk_id, v.turk_id
     ORDER BY t.worker_id, r.worker_id
     `,
@@ -242,13 +248,13 @@ const getSingleWorker = (exports.getSingleWorker = async (jobId, workerId) => {
           (SELECT (b.data->>'criteria')::json#>>'{0,workerAnswer}'
           FROM ${db.TABLES.Task} b
           WHERE b.item_id=a.item_id AND (b.data->>'answered')='true'
-          --AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND b.job_id=$1
+          AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND b.job_id=$1
           GROUP BY b.item_id,(b.data->>'criteria')::json#>>'{0,id}',(b.data->>'criteria')::json#>>'{0,workerAnswer}'
           ORDER BY COUNT(*) desc
           limit 1) AS answer
         FROM ${db.TABLES.Task} a
         WHERE a.job_id=$1 AND (a.data->>'answered')='true'
-        --AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
+        AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
         GROUP BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
         ORDER BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
         ) AS crowd
@@ -277,13 +283,13 @@ const getSingleWorker = (exports.getSingleWorker = async (jobId, workerId) => {
           (SELECT (b.data->>'criteria')::json#>>'{0,workerAnswer}'
           FROM ${db.TABLES.Task} b
           WHERE b.item_id=a.item_id AND (b.data->>'answered')='true'
-          --AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND b.job_id=$1
+          AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND b.job_id=$1
           GROUP BY b.item_id,(b.data->>'criteria')::json#>>'{0,id}',(b.data->>'criteria')::json#>>'{0,workerAnswer}'
           ORDER BY COUNT(*) desc
           limit 1) AS answer
         FROM ${db.TABLES.Task} a
         WHERE a.job_id=$1 AND (a.data->>'answered')='true'
-        --AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
+        AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
         GROUP BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
         ORDER BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
         ) AS crowd
@@ -331,13 +337,13 @@ const getContribution = (exports.getContribution = async jobId => {
           (SELECT (b.data->>'criteria')::json#>>'{0,workerAnswer}'
           FROM ${db.TABLES.Task} b
           WHERE b.item_id=a.item_id AND (b.data->>'answered')='true'
-          --AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND b.job_id=$1
+          AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded}) AND b.job_id=$1
           GROUP BY b.item_id,(b.data->>'criteria')::json#>>'{0,id}',(b.data->>'criteria')::json#>>'{0,workerAnswer}'
           ORDER BY COUNT(*) desc
           limit 1) AS answer
         FROM ${db.TABLES.Task} a
         WHERE a.job_id=$1 AND (a.data->>'answered')='true'
-        --AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
+        AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
         GROUP BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
         ORDER BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
         ) AS crowd
@@ -345,7 +351,7 @@ const getContribution = (exports.getContribution = async jobId => {
       AND u.id=t.worker_id AND (t.data->>'answered')='true'
       AND crowd.criteria_id=(t.data->>'criteria')::json#>>'{0,id}' 
       AND g.criteria_id=cast((t.data->>'criteria')::json#>>'{0,id}' AS bigint)
-      --AND t.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
+      AND t.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
       GROUP BY t.worker_id, u.turk_id
       ORDER BY t.worker_id`,
       [jobId]
@@ -389,13 +395,13 @@ const getJobStats = (exports.getJobStats = async jobId => {
           WHERE b.item_id=a.item_id 
           AND (b.data->>'criteria')::json#>>'{0,id}'=(a.data->>'criteria')::json#>>'{0,id}'
           AND b.job_id=$1 AND (b.data->>'answered')='true'
-          --AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
+          AND b.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
           GROUP BY b.item_id, b.data
           ORDER BY COUNT(*) desc
           limit 1) AS answer
         FROM ${db.TABLES.Task} a
         WHERE a.job_id=$1 AND (a.data->>'answered')='true'
-        --WHERE a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
+        AND a.worker_id NOT IN (SELECT * FROM ${db.TABLES.Excluded})
         GROUP BY a.item_id, a.data,(a.data->>'criteria')::json#>>'{0,id}'
         ORDER BY a.item_id, (a.data->>'criteria')::json#>>'{0,id}'
         ) AS crowd

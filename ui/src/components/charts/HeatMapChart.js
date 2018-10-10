@@ -67,7 +67,7 @@ class HeatMapChart extends React.Component {
 
     var yAxis = d3.axisLeft()
         .scale(yscale)
-        .tickFormat(d => d.substring(0,15)+'...')
+        .tickFormat(d => d.substring(0,10)+'...')
 
     var colorScale = d3.scaleQuantile()
         .domain([0,1])
